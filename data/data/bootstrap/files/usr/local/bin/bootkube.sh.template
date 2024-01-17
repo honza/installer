@@ -543,6 +543,9 @@ then
     fi
 fi
 
+echo "Shutting down ironic.service and metal3-baremetal-operator.service"
+systemctl stop ironic.service metal3-baremetal-operator.service
+
 if [ "$BOOTSTRAP_INPLACE" = true ]
 then
     . /usr/local/bin/bootstrap-in-place.sh "${CLUSTER_BOOTSTRAP_IMAGE}"
