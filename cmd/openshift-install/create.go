@@ -54,6 +54,8 @@ import (
 	"github.com/openshift/installer/pkg/types/vsphere"
 	cov1helpers "github.com/openshift/library-go/pkg/config/clusteroperator/v1helpers"
 	"github.com/openshift/library-go/pkg/route/routeapihelpers"
+
+	baremetalhost "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
 )
 
 type target struct {
@@ -435,6 +437,18 @@ func waitForBootstrapComplete(ctx context.Context, config *rest.Config) *cluster
 		return newAPIError(err)
 	}
 
+	// baremetal only
+	// TODO: extract this check?
+	if assetStore, err := assetstore.NewStore(command.RootOpts.Dir); err == nil {
+		if installConfig, err := assetStore.Load(&installconfig.InstallConfig{}); err == nil && installConfig != nil {
+			if installConfig.(*installconfig.InstallConfig).Config.Platform.Name() == baremetal.Name {
+				if err := waitForBootstrapControlPlane(ctx, client); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
 	if err := waitForBootstrapConfigMap(ctx, client); err != nil {
 		return err
 	}
@@ -443,6 +457,53 @@ func waitForBootstrapComplete(ctx context.Context, config *rest.Config) *cluster
 		return newBootstrapError(err)
 	}
 
+	return nil
+}
+
+// TODO: better name
+func waitForBootstrapControlPlane(ctx context.Context, client *kubernetes.Clientset) *clusterCreateError {
+	timeout := 30 * time.Minute
+
+	untilTime := time.Now().Add(timeout)
+	timezone, _ := untilTime.Zone()
+	logrus.Infof("Waiting up to %v (until %v %s) for baremetal control plane to provision...",
+		timeout, untilTime.Format(time.Kitchen), timezone)
+
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	_, err := clientwatch.UntilWithSync(
+		waitCtx,
+		cache.NewFilteredListWatchFromClient(client.CoreV1().RESTClient(), "baremetalhosts", "openshift-machine-api", func(options *metav1.ListOptions) {
+			options.LabelSelector = "installer.openshift.io/role=control-plane"
+		}),
+		&baremetalhost.BareMetalHost{},
+		nil,
+		func(event watch.Event) (bool, error) {
+			logrus.Debugf("baremetal watcher event", event)
+			return false, nil
+			// switch event.Type {
+			// case watch.Added, watch.Modified:
+			// default:
+			// 	return false, nil
+			// }
+			// cm, ok := event.Object.(*corev1.ConfigMap)
+			// if !ok {
+			// 	logrus.Warnf("Expected a core/v1.ConfigMap object but got a %q object instead", event.Object.GetObjectKind().GroupVersionKind())
+			// 	return false, nil
+			// }
+			// status, ok := cm.Data["status"]
+			// if !ok {
+			// 	logrus.Debugf("No status found in bootstrap configmap")
+			// 	return false, nil
+			// }
+			// logrus.Debugf("Bootstrap status: %v", status)
+			// return status == "complete", nil
+		},
+	)
+	if err != nil {
+		return newBootstrapError(err)
+	}
 	return nil
 }
 
