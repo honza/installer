@@ -474,7 +474,7 @@ func waitForBootstrapControlPlane(ctx context.Context, client *kubernetes.Client
 
 	_, err := clientwatch.UntilWithSync(
 		waitCtx,
-		cache.NewListWatchFromClient(client.CoreV1().RESTClient(), "baremetalhosts", "openshift-machine-api", fields.Everything()),
+		cache.NewListWatchFromClient(client.CoreV1().RESTClient(), "bmh", "openshift-machine-api", fields.Everything()),
 		// cache.NewFilteredListWatchFromClient(client.CoreV1().RESTClient(), "baremetalhosts", "openshift-machine-api", func(options *metav1.ListOptions) {
 		// 	options.LabelSelector = "installer.openshift.io/role=control-plane"
 		// }),
