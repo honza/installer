@@ -472,6 +472,11 @@ func waitForBootstrapControlPlane(ctx context.Context, client *kubernetes.Client
 	waitCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
+	checkIfExists := func(store cache.Store) (bool, error) {
+		logrus.Debug("checking if exists", len(store.List()))
+		return len(store.List()) == 0, nil
+	}
+
 	_, err := clientwatch.UntilWithSync(
 		waitCtx,
 		cache.NewListWatchFromClient(client.CoreV1().RESTClient(), "bmh", "openshift-machine-api", fields.Everything()),
@@ -479,7 +484,7 @@ func waitForBootstrapControlPlane(ctx context.Context, client *kubernetes.Client
 		// 	options.LabelSelector = "installer.openshift.io/role=control-plane"
 		// }),
 		&baremetalhost.BareMetalHost{},
-		nil,
+		checkIfExists,
 		func(event watch.Event) (bool, error) {
 			logrus.Debugf("baremetal watcher event", event)
 			return false, nil
