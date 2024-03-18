@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -496,22 +497,23 @@ func (cw convertWatch) Stop() {
 
 func (bc bmhCache) Watch(options metav1.ListOptions) (watch.Interface, error) {
 	logrus.Info("creating watch")
-	w, _ := bc.resource.Watch(context.TODO(), options)
+	// w, _ := bc.resource.Watch(context.TODO(), options)
+	return bc.resource.Watch(context.TODO(), options)
 
-	f := func(in watch.Event) (watch.Event, bool) {
-		bmh := &baremetalhost.BareMetalHostList{}
-		unstr, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(in.Object)
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstr, bmh); err != nil {
-			logrus.Error("failed to convert to bmh list", err)
-			return in, true
-		}
-		in.Object = bmh
-		return in, true
-	}
+	// f := func(in watch.Event) (watch.Event, bool) {
+	// 	bmh := &baremetalhost.BareMetalHostList{}
+	// 	unstr, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(in.Object)
+	// 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstr, bmh); err != nil {
+	// 		logrus.Error("failed to convert to bmh list", err)
+	// 		return in, true
+	// 	}
+	// 	in.Object = bmh
+	// 	return in, true
+	// }
 
-	out := watch.Filter(w, f)
+	// out := watch.Filter(w, f)
 
-	return out, nil
+	// return out, nil
 }
 
 // TODO: better name
@@ -554,7 +556,8 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 	_, err = clientwatch.UntilWithSync(
 		waitCtx,
 		cl,
-		&baremetalhost.BareMetalHostList{},
+		&unstructured.Unstructured{},
+		// &baremetalhost.BareMetalHostList{},
 		nil,
 		func(event watch.Event) (bool, error) {
 			logrus.Debugf("baremetal watcher event", event)
