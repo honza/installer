@@ -543,8 +543,8 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 	// 	return len(store.List()) == 0, nil
 	// }
 
-	logrus.Info("sleeping for 5mins")
-	time.Sleep(5 * time.Minute)
+	logrus.Info("sleeping for 2mins")
+	time.Sleep(2 * time.Minute)
 	logrus.Info("trying a simple list")
 	obj, err := cl.List(metav1.ListOptions{})
 	if err != nil {
@@ -560,7 +560,14 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 		// &baremetalhost.BareMetalHostList{},
 		nil,
 		func(event watch.Event) (bool, error) {
-			logrus.Debugf("baremetal watcher event", event)
+			logrus.Info("baremetal watcher event", event.Type, event.Object)
+			bmh := event.Object.(*baremetalhost.BareMetalHostList)
+			logrus.Info("converted", bmh)
+
+			for _, item := range bmh.Items {
+				logrus.Info("  ", item.ObjectMeta.Name)
+			}
+
 			return false, nil
 			// switch event.Type {
 			// case watch.Added, watch.Modified:
