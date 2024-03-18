@@ -556,17 +556,13 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 	_, err = clientwatch.UntilWithSync(
 		waitCtx,
 		cl,
-		&unstructured.Unstructured{},
-		// &baremetalhost.BareMetalHostList{},
+		// &unstructured.Unstructured{},
+		&baremetalhost.BareMetalHost{},
 		nil,
 		func(event watch.Event) (bool, error) {
 			logrus.Info("baremetal watcher event", event.Type, event.Object)
 			bmh := event.Object.(*baremetalhost.BareMetalHost)
-			logrus.Info("converted", bmh.Name, bmh)
-
-			// for _, item := range bmh.Items {
-			// 	logrus.Info("  ", item.ObjectMeta.Name)
-			// }
+			logrus.Info("converted", bmh)
 
 			return false, nil
 			// switch event.Type {
