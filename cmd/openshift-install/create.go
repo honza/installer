@@ -481,9 +481,37 @@ func (bc bmhCache) List(options metav1.ListOptions) (runtime.Object, error) {
 	return obj, nil
 }
 
+type convertWatch struct {
+	incoming watch.Interface
+	result   chan watch.Event
+}
+
+func (cw convertWatch) ResultChan() <-chan watch.Event {
+	return cw.result
+}
+
+func (cw convertWatch) Stop() {
+	cw.incoming.Stop()
+}
+
 func (bc bmhCache) Watch(options metav1.ListOptions) (watch.Interface, error) {
 	logrus.Info("creating watch")
-	return bc.resource.Watch(context.TODO(), options)
+	w, _ := bc.resource.Watch(context.TODO(), options)
+
+	f := func(in watch.Event) (watch.Event, bool) {
+		bmh := &baremetalhost.BareMetalHostList{}
+		unstr, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(in.Object)
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstr, bmh); err != nil {
+			logrus.Error("failed to convert to bmh list", err)
+			return in, true
+		}
+		in.Object = bmh
+		return in, true
+	}
+
+	out := watch.Filter(w, f)
+
+	return out, nil
 }
 
 // TODO: better name
@@ -508,11 +536,13 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 	waitCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	checkIfExists := func(store cache.Store) (bool, error) {
-		logrus.Debug("checking if exists", len(store.List()))
-		return len(store.List()) == 0, nil
-	}
+	// checkIfExists := func(store cache.Store) (bool, error) {
+	// 	logrus.Debug("checking if exists", len(store.List()))
+	// 	return len(store.List()) == 0, nil
+	// }
 
+	logrus.Info("sleeping for 5mins")
+	time.Sleep(5 * time.Minute)
 	logrus.Info("trying a simple list")
 	obj, err := cl.List(metav1.ListOptions{})
 	if err != nil {
@@ -525,7 +555,7 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 		waitCtx,
 		cl,
 		&baremetalhost.BareMetalHostList{},
-		checkIfExists,
+		nil,
 		func(event watch.Event) (bool, error) {
 			logrus.Debugf("baremetal watcher event", event)
 			return false, nil
