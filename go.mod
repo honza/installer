@@ -54,7 +54,7 @@ require (
 	github.com/jongio/azidext/go/azidext v0.5.0
 	github.com/kdomanski/iso9660 v0.2.1
 	github.com/metal3-io/baremetal-operator/apis v0.4.0
-	github.com/metal3-io/baremetal-operator/pkg/hardwareutils v0.4.0
+	github.com/metal3-io/baremetal-operator/pkg/hardwareutils v0.5.0
 	github.com/microsoft/kiota-authentication-azure-go v0.5.0
 	github.com/microsoftgraph/msgraph-sdk-go v0.47.0
 	github.com/nutanix-cloud-native/prism-go-client v0.2.1-0.20220804130801-c8a253627c64
@@ -289,8 +289,8 @@ require (
 
 // OpenShift Forks
 replace (
-	github.com/metal3-io/baremetal-operator => github.com/openshift/baremetal-operator v0.0.0-20231128154154-6736c9b9c6c8
-	github.com/metal3-io/baremetal-operator/apis => github.com/openshift/baremetal-operator/apis v0.0.0-20231128154154-6736c9b9c6c8
+	github.com/metal3-io/baremetal-operator => github.com/honza/baremetal-operator v0.0.0-20240318170440-d58507e70d94
+	github.com/metal3-io/baremetal-operator/apis => github.com/honza/baremetal-operator/apis v0.0.0-20240318170440-d58507e70d94
 	github.com/metal3-io/baremetal-operator/pkg/hardwareutils => github.com/openshift/baremetal-operator/pkg/hardwareutils v0.0.0-20231128154154-6736c9b9c6c8
 	k8s.io/cloud-provider-vsphere => github.com/openshift/cloud-provider-vsphere v1.19.1-0.20211222185833-7829863d0558
 // sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v0.4.5

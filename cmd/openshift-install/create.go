@@ -30,6 +30,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientwatch "k8s.io/client-go/tools/watch"
 
+	baremetalclientset "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1/generated/clientset/versioned"
+
 	configv1 "github.com/openshift/api/config/v1"
 	operatorv1 "github.com/openshift/api/operator/v1"
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
@@ -442,7 +444,7 @@ func waitForBootstrapComplete(ctx context.Context, config *rest.Config) *cluster
 	if assetStore, err := assetstore.NewStore(command.RootOpts.Dir); err == nil {
 		if installConfig, err := assetStore.Load(&installconfig.InstallConfig{}); err == nil && installConfig != nil {
 			if installConfig.(*installconfig.InstallConfig).Config.Platform.Name() == baremetal.Name {
-				if err := waitForBootstrapControlPlane(ctx, client); err != nil {
+				if err := waitForBootstrapControlPlane(ctx, config); err != nil {
 					return err
 				}
 			}
@@ -461,8 +463,13 @@ func waitForBootstrapComplete(ctx context.Context, config *rest.Config) *cluster
 }
 
 // TODO: better name
-func waitForBootstrapControlPlane(ctx context.Context, client *kubernetes.Clientset) *clusterCreateError {
+func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clusterCreateError {
 	timeout := 30 * time.Minute
+
+	client, err := baremetalclientset.NewForConfig(config)
+	if err != nil {
+		return newClientError(errors.Wrap(err, "creating a baremetal client"))
+	}
 
 	untilTime := time.Now().Add(timeout)
 	timezone, _ := untilTime.Zone()
@@ -477,9 +484,9 @@ func waitForBootstrapControlPlane(ctx context.Context, client *kubernetes.Client
 		return len(store.List()) == 0, nil
 	}
 
-	_, err := clientwatch.UntilWithSync(
+	_, err = clientwatch.UntilWithSync(
 		waitCtx,
-		cache.NewListWatchFromClient(client.CoreV1().RESTClient(), "bmh", "openshift-machine-api", fields.Everything()),
+		cache.NewListWatchFromClient(client.RESTClient(), "bmh", "openshift-machine-api", fields.Everything()),
 		// cache.NewFilteredListWatchFromClient(client.CoreV1().RESTClient(), "baremetalhosts", "openshift-machine-api", func(options *metav1.ListOptions) {
 		// 	options.LabelSelector = "installer.openshift.io/role=control-plane"
 		// }),

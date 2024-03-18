@@ -1807,6 +1807,8 @@ github.com/hexops/gotextdiff v1.0.3 h1:gitA9+qJrrTCsiCl7+kh75nPqQt1cx4ZkudSTLoUq
 github.com/hexops/gotextdiff v1.0.3/go.mod h1:pSWU5MAI3yDq+fZBTazCSJysOMbxWL1BSow5/V2vxeg=
 github.com/hinshun/vt10x v0.0.0-20220119200601-820417d04eec h1:qv2VnGeEQHchGaZ/u7lxST/RaJw+cv273q79D81Xbog=
 github.com/hinshun/vt10x v0.0.0-20220119200601-820417d04eec/go.mod h1:Q48J4R4DvxnHolD5P8pOtXigYlRuPLGl6moFx3ulM68=
+github.com/honza/baremetal-operator/apis v0.0.0-20240318170440-d58507e70d94 h1:Xi64Tf4z92YoKMyYZsLkE94v7GTWo1sTpGfhirjXeYs=
+github.com/honza/baremetal-operator/apis v0.0.0-20240318170440-d58507e70d94/go.mod h1:BeimJCyHApBuNLe/O2jdIp8v4ipcN5sgobIe/Z1oF6w=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/iancoleman/strcase v0.2.0/go.mod h1:iwCmte+B7n89clKwxIoIXy/HfoL7AsD47ZCWhYzw7ho=
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
@@ -2009,8 +2011,6 @@ github.com/openshift/assisted-service/client v0.0.0-20230831114549-1922eda29cf8 
 github.com/openshift/assisted-service/client v0.0.0-20230831114549-1922eda29cf8/go.mod h1:k0S4WqxFuMBJYyinCgHjtWoEnE6/R2OyakW60MUHPYQ=
 github.com/openshift/assisted-service/models v0.0.0-20230831114549-1922eda29cf8 h1:lQO/vwmLX4kSmZitusnqdq9KbuW402DWkcmR0CJfgBI=
 github.com/openshift/assisted-service/models v0.0.0-20230831114549-1922eda29cf8/go.mod h1:ImkG1jQgM72erhLaZtWqEn0g0Y8AYUOxLR/HgvlPi2Y=
-github.com/openshift/baremetal-operator/apis v0.0.0-20231128154154-6736c9b9c6c8 h1:f5nZJ4mB9Rf1epInmKoqDJGdoHyqZwHCiaE/OH4Yx84=
-github.com/openshift/baremetal-operator/apis v0.0.0-20231128154154-6736c9b9c6c8/go.mod h1:CvKrrnAcvvtrZIc9y9WaqWmJhK0AJ9sWnh+VP4d7jcM=
 github.com/openshift/baremetal-operator/pkg/hardwareutils v0.0.0-20231128154154-6736c9b9c6c8 h1:38vY9w7dXqB7tI9g1GCUnpahNDyBbp9Yylq+BQ154YE=
 github.com/openshift/baremetal-operator/pkg/hardwareutils v0.0.0-20231128154154-6736c9b9c6c8/go.mod h1:399nvdaqoU9rTI25UdFw2EWcVjmJPpeZPIhfDAIx/XU=
 github.com/openshift/client-go v0.0.0-20231218140158-47f6d749b9d9 h1:kjgW3luAkf9NWu+8u+jqNNbexDG+CY82/INw8hGbG14=
