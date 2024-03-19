@@ -16,6 +16,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	// "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
@@ -466,20 +468,23 @@ type bmhCache struct {
 }
 
 func (bc bmhCache) List(options metav1.ListOptions) (runtime.Object, error) {
-	obj := &baremetalhost.BareMetalHostList{}
-	list, err := bc.resource.List(context.TODO(), options)
+	// obj := &baremetalhost.BareMetalHostList{}
+	return bc.resource.List(context.TODO(), options)
+	// list, err := bc.resource.List(context.TODO(), options)
 
-	if err != nil {
-		return obj, err
-	}
+	// if err != nil {
+	// 	return list, err
+	// }
 
-	logrus.Info("list worked", list)
+	// logrus.Info("list worked", list)
 
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(list.UnstructuredContent(), obj); err != nil {
-		return obj, err
-	}
+	// if err := runtime.DefaultUnstructuredConverter.FromUnstructured(list.UnstructuredContent(), obj); err != nil {
+	// 	return obj, err
+	// }
 
-	return obj, nil
+	// return list, nil
+
+	// return obj, nil
 }
 
 type convertWatch struct {
@@ -556,8 +561,8 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 	_, err = clientwatch.UntilWithSync(
 		waitCtx,
 		cl,
-		// &unstructured.Unstructured{},
-		&baremetalhost.BareMetalHost{},
+		&unstructured.Unstructured{},
+		// &baremetalhost.BareMetalHost{},
 		nil,
 		func(event watch.Event) (bool, error) {
 
@@ -568,13 +573,28 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 			}
 
 			logrus.Info("baremetal watcher event", event.Type)
-			bmh, ok := event.Object.(*baremetalhost.BareMetalHost)
 
-			if ok {
-				logrus.Info("converted: ", bmh.Name, bmh.Labels)
-			} else {
-				logrus.Warn("failed to convert: ", event.Object)
+			bmh := &baremetalhost.BareMetalHost{}
+
+			unstr, err := runtime.DefaultUnstructuredConverter.ToUnstructured(event.Object)
+			if err != nil {
+				return false, err
 			}
+
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstr, bmh); err != nil {
+				logrus.Error("failed to convert to bmh", err)
+				return false, err
+			}
+
+			logrus.Info("converted: ", bmh.Name, bmh.Labels)
+
+			// bmh, ok := event.Object.(*baremetalhost.BareMetalHost)
+
+			// if ok {
+			// 	logrus.Info("converted: ", bmh.Name, bmh.Labels)
+			// } else {
+			// 	logrus.Warn("failed to convert: ", event.Object)
+			// }
 
 			return false, nil
 			// cm, ok := event.Object.(*corev1.ConfigMap)
