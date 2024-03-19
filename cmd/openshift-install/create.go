@@ -14,7 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	v1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -500,7 +500,7 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 	defer cancel()
 
 	apiextensionsClient, err := apiextensionsclientset.NewForConfig(config)
-	crdList, err := apiextensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().List(waitCtx, metav1.ListOptions{})
+	crdList, err := apiextensionsClient.ApiextensionsV1().CustomResourceDefinitions().List(waitCtx, metav1.ListOptions{})
 
 	for _, crd := range crdList.Items {
 		logrus.Info("   crd: ", crd.Name)
@@ -508,7 +508,7 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 	_, err = clientwatch.UntilWithSync(
 		waitCtx,
 		cache.NewListWatchFromClient(apiextensionsClient.ApiextensionsV1beta1().RESTClient(), "crds", "", fields.Everything()),
-		&v1beta1.CustomResourceDefinitionList{},
+		&v1.CustomResourceDefinitionList{},
 		nil,
 		func(event watch.Event) (bool, error) {
 			switch event.Type {
@@ -523,7 +523,6 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 		},
 	)
 
-	// TODO: check if bmh crd is installed before using the lister
 	_, err = clientwatch.UntilWithSync(
 		waitCtx,
 		blw,
