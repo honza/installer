@@ -14,6 +14,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	v1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -463,62 +465,16 @@ func waitForBootstrapComplete(ctx context.Context, config *rest.Config) *cluster
 	return nil
 }
 
-type bmhCache struct {
+type bmhCacheListerWatcher struct {
 	resource dynamic.ResourceInterface
 }
 
-func (bc bmhCache) List(options metav1.ListOptions) (runtime.Object, error) {
-	// obj := &baremetalhost.BareMetalHostList{}
+func (bc bmhCacheListerWatcher) List(options metav1.ListOptions) (runtime.Object, error) {
 	return bc.resource.List(context.TODO(), options)
-	// list, err := bc.resource.List(context.TODO(), options)
-
-	// if err != nil {
-	// 	return list, err
-	// }
-
-	// logrus.Info("list worked", list)
-
-	// if err := runtime.DefaultUnstructuredConverter.FromUnstructured(list.UnstructuredContent(), obj); err != nil {
-	// 	return obj, err
-	// }
-
-	// return list, nil
-
-	// return obj, nil
 }
 
-type convertWatch struct {
-	incoming watch.Interface
-	result   chan watch.Event
-}
-
-func (cw convertWatch) ResultChan() <-chan watch.Event {
-	return cw.result
-}
-
-func (cw convertWatch) Stop() {
-	cw.incoming.Stop()
-}
-
-func (bc bmhCache) Watch(options metav1.ListOptions) (watch.Interface, error) {
-	logrus.Info("creating watch")
-	// w, _ := bc.resource.Watch(context.TODO(), options)
+func (bc bmhCacheListerWatcher) Watch(options metav1.ListOptions) (watch.Interface, error) {
 	return bc.resource.Watch(context.TODO(), options)
-
-	// f := func(in watch.Event) (watch.Event, bool) {
-	// 	bmh := &baremetalhost.BareMetalHostList{}
-	// 	unstr, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(in.Object)
-	// 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstr, bmh); err != nil {
-	// 		logrus.Error("failed to convert to bmh list", err)
-	// 		return in, true
-	// 	}
-	// 	in.Object = bmh
-	// 	return in, true
-	// }
-
-	// out := watch.Filter(w, f)
-
-	// return out, nil
 }
 
 // TODO: better name
@@ -531,7 +487,7 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 	}
 
 	r := client.Resource(baremetalhost.GroupVersion.WithResource("baremetalhosts")).Namespace("openshift-machine-api")
-	cl := bmhCache{
+	blw := bmhCacheListerWatcher{
 		resource: r,
 	}
 
@@ -543,19 +499,37 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 	waitCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// checkIfExists := func(store cache.Store) (bool, error) {
-	// 	logrus.Debug("checking if exists", len(store.List()))
-	// 	return len(store.List()) == 0, nil
-	// }
+	apiextensionsClient, err := apiextensionsclientset.NewForConfig(config)
+	crdList, err := apiextensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().List(waitCtx, metav1.ListOptions{})
 
+	for _, crd := range crdList.Items {
+		logrus.Info("   crd: ", crd.Name)
+	}
 	_, err = clientwatch.UntilWithSync(
 		waitCtx,
-		cl,
-		&unstructured.Unstructured{},
-		// &baremetalhost.BareMetalHost{},
+		cache.NewListWatchFromClient(apiextensionsClient.ApiextensionsV1beta1().RESTClient(), "crds", "", fields.Everything()),
+		&v1beta1.CustomResourceDefinitionList{},
 		nil,
 		func(event watch.Event) (bool, error) {
+			switch event.Type {
+			case watch.Added, watch.Modified:
+			default:
+				return false, nil
+			}
 
+			logrus.Info("crd? ", event.Object)
+
+			return false, nil
+		},
+	)
+
+	// TODO: check if bmh crd is installed before using the lister
+	_, err = clientwatch.UntilWithSync(
+		waitCtx,
+		blw,
+		&unstructured.Unstructured{},
+		nil,
+		func(event watch.Event) (bool, error) {
 			switch event.Type {
 			case watch.Added, watch.Modified:
 			default:
@@ -582,27 +556,9 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 				logrus.Info("  bmh: ", bmh.Name, bmh.Status.Provisioning.State)
 			}
 
-			// bmh, ok := event.Object.(*baremetalhost.BareMetalHost)
-
-			// if ok {
-			// 	logrus.Info("converted: ", bmh.Name, bmh.Labels)
-			// } else {
-			// 	logrus.Warn("failed to convert: ", event.Object)
-			// }
+			// TODO: all ready?
 
 			return false, nil
-			// cm, ok := event.Object.(*corev1.ConfigMap)
-			// if !ok {
-			// 	logrus.Warnf("Expected a core/v1.ConfigMap object but got a %q object instead", event.Object.GetObjectKind().GroupVersionKind())
-			// 	return false, nil
-			// }
-			// status, ok := cm.Data["status"]
-			// if !ok {
-			// 	logrus.Debugf("No status found in bootstrap configmap")
-			// 	return false, nil
-			// }
-			// logrus.Debugf("Bootstrap status: %v", status)
-			// return status == "complete", nil
 		},
 	)
 	if err != nil {
@@ -633,6 +589,8 @@ func waitForBootstrapConfigMap(ctx context.Context, client *kubernetes.Clientset
 
 	waitCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+
+	client.CoreV1().RESTClient().Get().AbsPath().SpecificallyVersionedParams().Do().Error()
 
 	_, err := clientwatch.UntilWithSync(
 		waitCtx,
