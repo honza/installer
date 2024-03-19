@@ -560,16 +560,23 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 		&baremetalhost.BareMetalHost{},
 		nil,
 		func(event watch.Event) (bool, error) {
+
+			switch event.Type {
+			case watch.Added, watch.Modified:
+			default:
+				return false, nil
+			}
+
 			logrus.Info("baremetal watcher event", event.Type)
-			bmh := event.Object.(*baremetalhost.BareMetalHost)
-			logrus.Info("converted: ", bmh.Name, bmh.Labels)
+			bmh, ok := event.Object.(*baremetalhost.BareMetalHost)
+
+			if ok {
+				logrus.Info("converted: ", bmh.Name, bmh.Labels)
+			} else {
+				logrus.Warn("failed to convert: ", event.Object)
+			}
 
 			return false, nil
-			// switch event.Type {
-			// case watch.Added, watch.Modified:
-			// default:
-			// 	return false, nil
-			// }
 			// cm, ok := event.Object.(*corev1.ConfigMap)
 			// if !ok {
 			// 	logrus.Warnf("Expected a core/v1.ConfigMap object but got a %q object instead", event.Object.GetObjectKind().GroupVersionKind())
