@@ -590,8 +590,6 @@ func waitForBootstrapConfigMap(ctx context.Context, client *kubernetes.Clientset
 	waitCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	client.CoreV1().RESTClient().Get().AbsPath().SpecificallyVersionedParams().Do().Error()
-
 	_, err := clientwatch.UntilWithSync(
 		waitCtx,
 		cache.NewListWatchFromClient(client.CoreV1().RESTClient(), "configmaps", "kube-system", fields.OneTermEqualSelector("metadata.name", "bootstrap")),
