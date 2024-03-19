@@ -562,8 +562,6 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 				return false, nil
 			}
 
-			logrus.Info("baremetal watcher event", event.Type)
-
 			bmh := &baremetalhost.BareMetalHost{}
 
 			unstr, err := runtime.DefaultUnstructuredConverter.ToUnstructured(event.Object)
@@ -576,8 +574,13 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 				return false, err
 			}
 
-			logrus.Info("converted: ", bmh.Name, bmh.Labels)
-			logrus.Info("state: ", bmh.Status.Provisioning.State)
+			// is control plane?
+
+			role, found := bmh.Labels["installer.openshift.io/role"]
+
+			if found && role == "control-plane" {
+				logrus.Info("  bmh: ", bmh.Name, bmh.Status.Provisioning.State)
+			}
 
 			// bmh, ok := event.Object.(*baremetalhost.BareMetalHost)
 
