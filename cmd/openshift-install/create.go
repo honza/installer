@@ -577,6 +577,7 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 			}
 
 			logrus.Info("converted: ", bmh.Name, bmh.Labels)
+			logrus.Info("state: ", bmh.Status.Provisioning.State)
 
 			// bmh, ok := event.Object.(*baremetalhost.BareMetalHost)
 
