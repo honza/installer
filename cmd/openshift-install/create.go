@@ -548,16 +548,6 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 	// 	return len(store.List()) == 0, nil
 	// }
 
-	logrus.Info("sleeping for 2mins")
-	time.Sleep(2 * time.Minute)
-	logrus.Info("trying a simple list")
-	obj, err := cl.List(metav1.ListOptions{})
-	if err != nil {
-		logrus.Error(err)
-	} else {
-		logrus.Info("obj", obj)
-	}
-
 	_, err = clientwatch.UntilWithSync(
 		waitCtx,
 		cl,
