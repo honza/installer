@@ -14,8 +14,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -442,12 +440,11 @@ func waitForBootstrapComplete(ctx context.Context, config *rest.Config) *cluster
 		return newAPIError(err)
 	}
 
-	// baremetal only
-	// TODO: extract this check?
+	// baremetal: monitor control plane bootstrapping progress
 	if assetStore, err := assetstore.NewStore(command.RootOpts.Dir); err == nil {
 		if installConfig, err := assetStore.Load(&installconfig.InstallConfig{}); err == nil && installConfig != nil {
 			if installConfig.(*installconfig.InstallConfig).Config.Platform.Name() == baremetal.Name {
-				if err := waitForBootstrapControlPlane(ctx, config); err != nil {
+				if err := waitForBaremetalBootstrapControlPlane(ctx, config); err != nil {
 					return err
 				}
 			}
@@ -477,8 +474,7 @@ func (bc bmhCacheListerWatcher) Watch(options metav1.ListOptions) (watch.Interfa
 	return bc.resource.Watch(context.TODO(), options)
 }
 
-// TODO: better name
-func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clusterCreateError {
+func waitForBaremetalBootstrapControlPlane(ctx context.Context, config *rest.Config) *clusterCreateError {
 	timeout := 30 * time.Minute
 
 	client, err := dynamic.NewForConfig(config)
@@ -499,29 +495,7 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 	waitCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	apiextensionsClient, err := apiextensionsclientset.NewForConfig(config)
-	crdList, err := apiextensionsClient.ApiextensionsV1().CustomResourceDefinitions().List(waitCtx, metav1.ListOptions{})
-
-	for _, crd := range crdList.Items {
-		logrus.Info("   crd: ", crd.Name)
-	}
-	_, err = clientwatch.UntilWithSync(
-		waitCtx,
-		cache.NewListWatchFromClient(apiextensionsClient.ApiextensionsV1beta1().RESTClient(), "crds", "", fields.Everything()),
-		&v1.CustomResourceDefinitionList{},
-		nil,
-		func(event watch.Event) (bool, error) {
-			switch event.Type {
-			case watch.Added, watch.Modified:
-			default:
-				return false, nil
-			}
-
-			logrus.Info("crd? ", event.Object)
-
-			return false, nil
-		},
-	)
+	masters := map[string]baremetalhost.BareMetalHost{}
 
 	_, err = clientwatch.UntilWithSync(
 		waitCtx,
@@ -552,12 +526,21 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 			role, found := bmh.Labels["installer.openshift.io/role"]
 
 			if found && role == "control-plane" {
-				logrus.Info("  bmh: ", bmh.Name, bmh.Status.Provisioning.State)
+				logrus.Infof("  bmh: %s: %s", bmh.Name, bmh.Status.Provisioning.State)
+				masters[bmh.Name] = *bmh
 			}
 
-			// TODO: all ready?
+			if len(masters) == 0 {
+				return false, nil
+			}
 
-			return false, nil
+			for _, master := range masters {
+				if master.Status.Provisioning.State != baremetalhost.StateProvisioned {
+					return false, nil
+				}
+			}
+
+			return true, nil
 		},
 	)
 	if err != nil {
