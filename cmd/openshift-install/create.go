@@ -560,9 +560,9 @@ func waitForBootstrapControlPlane(ctx context.Context, config *rest.Config) *clu
 		&baremetalhost.BareMetalHost{},
 		nil,
 		func(event watch.Event) (bool, error) {
-			logrus.Info("baremetal watcher event", event.Type, event.Object)
+			logrus.Info("baremetal watcher event", event.Type)
 			bmh := event.Object.(*baremetalhost.BareMetalHost)
-			logrus.Info("converted", bmh)
+			logrus.Info("converted: ", bmh.Name, bmh.Labels)
 
 			return false, nil
 			// switch event.Type {
